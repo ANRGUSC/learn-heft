@@ -32,7 +32,7 @@ Shipped 2026-11-22.
 - Live at https://learn-heft.vercel.app (public, no login); source at https://github.com/ANRGUSC/learn-heft
 - Engine tests: 7 passing (`node --test tests/heft.test.mjs`). They reproduce the lecture numbers
   (ranks 9.5 / 6.0 / 5.5 / 2.0 and makespan 7 for example 1; makespan 9 with the P1 tie-break for
-  example 2) and replay 750 random problems against a brute-force earliest-slot search.
+  example 2) and replay 1,500 random problems against a brute-force earliest-slot search.
 - Browser check (headless Chromium, local and production): every preset and 48 random problems
   stepped end to end, practice mode scored 32/32 with correct answers, no console errors.
 - Only `index.html` is uploaded to Vercel (`.vercelignore` whitelist); the lecture PDF is in
