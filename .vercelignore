@@ -1,0 +1,3 @@
+# Whitelist: only the app itself is uploaded to Vercel.
+/*
+!/index.html

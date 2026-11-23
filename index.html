@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HEFT Scheduling Algorithm — EE 250</title>
+<meta name="description" content="Interactive tool to learn and practice the HEFT (Heterogeneous Earliest Finish Time) task scheduling algorithm.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #FAFAF7;
+  --bg-card: #FFFFFF;
+  --text: #1A1A2E;
+  --text-muted: #5A5A6E;
+  --cardinal: #990000;
+  --teal: #1B6B6D;
+  --gold: #C4972A;
+  --border: #E0DDD4;
+  --shadow: rgba(0,0,0,0.06);
+  --current-fill: #FDE68A;
+  --spt-edge: #2563EB;
+  --correct: #16A34A;
+  --incorrect: #DC2626;
+  --hover: #F0EDE6;
+  --ink: #1A1A2E;          /* text drawn on top of task colors (same in both themes) */
+  /* Task colors: A-D follow the Gantt chart on the lecture slide */
+  --t0: #87CEEB; --t1: #90EE90; --t2: #FFB347; --t3: #F08080;
+  --t4: #D8A8E8; --t5: #F0E68C; --t6: #C9B79C;
+}
+
+[data-theme="dark"] {
+  --bg: #0F0F17;
+  --bg-card: #1A1A28;
+  --text: #E8E8F0;
+  --text-muted: #9090A8;
+  --cardinal: #FF6666;
+  --teal: #4ECDC4;
+  --gold: #F0C050;
+  --border: #2A2A3E;
+  --shadow: rgba(0,0,0,0.3);
+  --current-fill: #5C4D1A;
+  --spt-edge: #60A5FA;
+  --correct: #4ADE80;
+  --incorrect: #F87171;
+  --hover: #22223A;
+}
+
+body {
+  font-family: 'Source Serif 4', Georgia, serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-badge {
+  background: var(--cardinal);
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+[data-theme="dark"] .header-badge { color: #0F0F17; }
+.dark-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.dark-toggle:hover { border-color: var(--text-muted); }
+
+/* Title */
+.title-section {
+  text-align: center;
+  padding: 24px 24px 8px;
+}
+.title-section h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.title-section .subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 24px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.control-group label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.control-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 4px;
+}
+select, button {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+select:hover, button:hover { border-color: var(--text-muted); }
+button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.45; cursor: default; }
+.btn-primary {
+  background: var(--teal);
+  color: #fff;
+  border-color: var(--teal);
+}
+[data-theme="dark"] .btn-primary { color: #0F0F17; }
+.btn-primary:hover { opacity: 0.9; border-color: var(--teal); }
+.mode-toggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.mode-btn {
+  border: none;
+  border-radius: 0;
+  padding: 6px 14px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.mode-btn.active {
+  background: var(--teal);
+  color: #fff;
+}
+[data-theme="dark"] .mode-btn.active { color: #0F0F17; }
+.step-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.step-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Main layout */
+.main-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 0 24px 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  align-items: start;
+}
+.right-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 860px) {
+  .main-area { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Card */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px var(--shadow);
+  overflow: hidden;
+}
+.card-header {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.card-note {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 16px 10px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+/* SVG task graph */
+.graph-card svg, .gantt-card svg { width: 100%; height: auto; display: block; }
+svg text { user-select: none; }
+.edge { fill: none; stroke: var(--text-muted); stroke-width: 1.5; opacity: 0.45; transition: stroke 0.3s, opacity 0.3s; }
+.arrow { fill: var(--text-muted); opacity: 0.45; transition: fill 0.3s, opacity 0.3s; }
+.edge.focus { stroke: var(--gold); stroke-width: 2.5; opacity: 1; }
+.arrow.focus { fill: var(--gold); opacity: 1; }
+.edge.best, .edge.cross { stroke: var(--spt-edge); stroke-width: 3; opacity: 1; }
+.arrow.best, .arrow.cross { fill: var(--spt-edge); opacity: 1; }
+.edge.local { stroke: var(--teal); stroke-width: 2; stroke-dasharray: 5 4; opacity: 0.9; }
+.arrow.local { fill: var(--teal); opacity: 0.9; }
+.edge-label-bg { fill: var(--bg-card); stroke: var(--border); stroke-width: 0.5; opacity: 0.95; }
+.edge-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; fill: var(--text-muted); text-anchor: middle; }
+.node { fill: var(--bg-card); stroke: var(--border); stroke-width: 2; transition: fill 0.3s, stroke 0.3s; }
+.node.ranked { stroke: var(--teal); }
+.node.current { fill: var(--current-fill); stroke: var(--gold); stroke-width: 3; }
+.node.scheduled { stroke: var(--teal); }
+.node.scheduled.current { stroke: var(--gold); stroke-width: 3; }
+.node-label { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; fill: var(--text); text-anchor: middle; }
+.node-label.on-color { fill: var(--ink); }
+.node-info {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; fill: var(--text-muted); transition: fill 0.3s;
+  paint-order: stroke; stroke: var(--bg-card); stroke-width: 4px; stroke-linejoin: round;   /* halo over edges */
+}
+.node-info.changed { fill: var(--cardinal); }
+.node-hit { fill: transparent; stroke: transparent; cursor: pointer; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+}
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-line { flex: none; }
+.legend-line { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--spt-edge); }
+.legend-line.local { border-top: 2px dashed var(--teal); }
+
+/* State table */
+.state-table-wrap { padding: 0; overflow-x: auto; }
+.state-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+.state-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  white-space: nowrap;
+}
+.state-table th .lc { text-transform: none; }
+.state-table th.group-start, .state-table td.group-start { border-left: 1px solid var(--border); }
+.state-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  transition: background 0.3s;
+  white-space: nowrap;
+}
+.state-table tr:last-child td { border-bottom: none; }
+.state-table tr.row-visited td:first-child { color: var(--teal); font-weight: 600; }
+.state-table tr.row-current { background: var(--current-fill); }
+.state-table td.cell-changed { color: var(--cardinal); font-weight: 600; }
+.chip {
+  display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+  margin-right: 7px; border: 1px solid rgba(0,0,0,0.25); vertical-align: -1px;
+}
+
+/* Gantt chart */
+.gantt-row { fill: var(--bg); }
+.gantt-grid { stroke: var(--border); stroke-width: 1; }
+.gantt-axis { stroke: var(--text-muted); stroke-width: 1; }
+.gantt-tick { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: var(--text-muted); text-anchor: middle; }
+.gantt-proc { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; fill: var(--text-muted); }
+.gantt-bar { stroke: rgba(0,0,0,0.35); stroke-width: 1; }
+.gantt-bar.current { stroke: var(--gold); stroke-width: 3; }
+.gantt-bar-label { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; fill: var(--ink); text-anchor: middle; }
+.gantt-ghost { fill: none; stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.gantt-ghost-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: var(--text-muted); text-anchor: middle; }
+.gantt-makespan { stroke: var(--cardinal); stroke-width: 2; stroke-dasharray: 5 3; }
+.gantt-makespan-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; fill: var(--cardinal); }
+
+/* Explanation panel */
+.explanation-card {
+  max-width: 1200px;
+  margin: 0 auto 16px;
+  padding: 0 24px;
+}
+.explanation-card .card { min-height: 80px; }
+.explanation-content {
+  padding: 16px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.explanation-content .step-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.explanation-content .relaxation {
+  margin: 4px 0 4px 16px;
+  padding: 3px 0;
+}
+/* Formula / calculation lines: white-space: pre keeps spacing exactly as written */
+.math {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+.math-line {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 4px 0 4px 16px;
+  padding: 3px 0;
+}
+.math-line.formula { color: var(--text-muted); }
+.updated { color: var(--cardinal); font-weight: 600; }
+.no-update { color: var(--text-muted); }
+.explanation-content .summary {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--teal);
+  font-size: 14px;
+}
+.proc-block {
+  margin: 8px 0 8px 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.proc-block.chosen { border-color: var(--teal); background: var(--bg); }
+.proc-name { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.proc-block.chosen .proc-name { color: var(--teal); }
+.proc-block .line { margin: 1px 0; }
+.done-summary {
+  text-align: center;
+  padding: 20px;
+}
+.done-summary h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--teal);
+  margin-bottom: 12px;
+}
+.done-summary .path-result {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  margin: 4px 0;
+}
+.done-summary .makespan { font-size: 16px; font-weight: 600; color: var(--cardinal); margin-top: 10px; }
+
+/* Practice mode */
+.quiz-area { padding: 16px; }
+.quiz-prompt {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.quiz-hint {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.quiz-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.quiz-choice {
+  padding: 8px 18px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--bg-card);
+  color: var(--text);
+  transition: all 0.15s;
+}
+.quiz-choice:hover { border-color: var(--teal); background: var(--hover); }
+.quiz-choice.correct { border-color: var(--correct); background: rgba(22,163,74,0.1); color: var(--correct); }
+.quiz-choice.incorrect { border-color: var(--incorrect); background: rgba(220,38,38,0.1); color: var(--incorrect); }
+.quiz-choice.disabled { pointer-events: none; }
+.quiz-sequence { font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-bottom: 12px; }
+
+.quiz-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+}
+.quiz-input-row label { min-width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.quiz-input-row label.wide { min-width: 170px; }
+.quiz-input-row .sub { color: var(--text-muted); font-size: 13px; }
+.quiz-input {
+  width: 76px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  text-align: center;
+  background: var(--bg-card);
+  color: var(--text);
+}
+.quiz-input:focus { outline: none; border-color: var(--teal); }
+.quiz-input.correct { border-color: var(--correct); background: rgba(22,163,74,0.08); }
+.quiz-input.incorrect { border-color: var(--incorrect); background: rgba(220,38,38,0.08); }
+.quiz-feedback {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  min-width: 14px;
+}
+.quiz-feedback.correct { color: var(--correct); }
+.quiz-feedback.incorrect { color: var(--incorrect); }
+.quiz-submit { margin-top: 12px; }
+.quiz-results { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.quiz-results:empty { display: none; }
+.score-display {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: right;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+}
+.score-display span { font-family: 'JetBrains Mono', monospace; color: var(--teal); font-weight: 600; }
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 16px 24px 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.footer .credit { margin-top: 6px; font-size: 11px; line-height: 1.6; }
+.footer a { color: var(--teal); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* Keyboard hint */
+.kbd-hint {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0 24px 12px;
+}
+kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  background: var(--bg);
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <span class="header-badge">EE 250</span>
+    <span>Designed for EE 250, USC Viterbi School of Engineering</span>
+  </div>
+  <button class="dark-toggle" onclick="toggleDark()" title="Toggle dark mode (D)">Light / Dark</button>
+</div>
+
+<!-- Title -->
+<div class="title-section">
+  <h1>HEFT Scheduling Algorithm</h1>
+  <div class="subtitle">Heterogeneous Earliest Finish Time — interactive step-by-step visualization</div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button class="btn-primary" onclick="newProblem()" title="Generate a new random problem (G)">New Problem</button>
+  <div class="control-group">
+    <label for="problemSelect">Problem:</label>
+    <select id="problemSelect"></select>
+  </div>
+  <div class="control-group">
+    <label for="taskCount">Tasks:</label>
+    <select id="taskCount" title="Number of tasks (changing it generates a new random problem)">
+      <option value="3">3</option>
+      <option value="4" selected>4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label for="procCount">Processors:</label>
+    <select id="procCount" title="Number of processors (changing it generates a new random problem)">
+      <option value="2" selected>2</option>
+      <option value="3">3</option>
+    </select>
+  </div>
+  <div class="control-sep"></div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="modeDemo" onclick="setMode('demo')">Demo</button>
+    <button class="mode-btn" id="modePractice" onclick="setMode('practice')">Practice</button>
+  </div>
+  <div class="control-sep"></div>
+  <div class="step-controls">
+    <button id="prevBtn" onclick="prevStep()" title="Previous step (Left arrow)">Prev</button>
+    <span class="step-label" id="stepLabel">Step 0/0</span>
+    <button id="nextBtn" onclick="nextStep()" title="Next step (Right arrow)">Next</button>
+    <button onclick="resetSteps()" title="Reset (R)">Reset</button>
+  </div>
+</div>
+
+<!-- Main area -->
+<div class="main-area">
+  <div class="card graph-card">
+    <div class="card-header">Task Graph (DAG)</div>
+    <svg id="graphSvg" viewBox="0 0 600 400"></svg>
+    <div class="card-note legend">
+      <span class="legend-item">Edge label = communication cost between different processors</span>
+      <span class="legend-item"><span class="legend-line"></span> different processors (cost paid)</span>
+      <span class="legend-item"><span class="legend-line local"></span> same processor (cost 0)</span>
+    </div>
+  </div>
+  <div class="right-col">
+    <div class="card">
+      <div class="card-header">Algorithm State</div>
+      <div class="state-table-wrap" id="stateTableWrap"></div>
+    </div>
+    <div class="card gantt-card">
+      <div class="card-header">Schedule (Gantt Chart)</div>
+      <svg id="ganttSvg" viewBox="0 0 560 120"></svg>
+    </div>
+  </div>
+</div>
+
+<!-- Explanation -->
+<div class="explanation-card">
+  <div class="card">
+    <div class="card-header" id="explanationHeader">Explanation</div>
+    <div id="explanationContent" class="explanation-content"></div>
+    <div class="score-display" id="scoreDisplay" style="display:none;">
+      Score: <span id="scoreValue">0</span> / <span id="scoreMax">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard hints -->
+<div class="kbd-hint">
+  <kbd>&larr;</kbd> <kbd>&rarr;</kbd> Step &nbsp;
+  <kbd>R</kbd> Reset &nbsp;
+  <kbd>G</kbd> New Problem &nbsp;
+  <kbd>N</kbd> Toggle Mode &nbsp;
+  <kbd>D</kbd> Dark Mode
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  Bhaskar Krishnamachari
+  <div class="credit">
+    Problem set and practice format adapted from
+    <a href="https://heft-trainer.vercel.app/" target="_blank" rel="noopener">HEFT Algorithm Trainer</a>
+    by Abir Bhatt (EE 250, Spring 2026).<br>
+    HEFT: H. Topcuoglu, S. Hariri, and Min-You Wu, &ldquo;Performance-effective and low-complexity task scheduling for
+    heterogeneous computing,&rdquo; <em>IEEE Transactions on Parallel and Distributed Systems</em>, vol. 13, no. 3,
+    pp. 260&ndash;274, 2002.
+    <a href="https://doi.org/10.1109/71.993206" target="_blank" rel="noopener">doi:10.1109/71.993206</a>
+  </div>
+</div>
+
+<script>
+// ENGINE-START
+// ══════════════════════════════════════════════════════════════════════════
+// HEFT engine: pure functions, no DOM. Tested by tests/heft.test.mjs.
+//
+// Problem format:
+//   tasks:   ['A','B',...]
+//   edges:   [['A','B'], ...]            dependency: A must finish before B starts
+//   compute: { A: [costOnP1, costOnP2, ...] }
+//   comm:    { 'A-B': cost }             paid only if A and B run on DIFFERENT
+//                                        processors (0 on the same processor)
+//   nP:      number of processors
+// ══════════════════════════════════════════════════════════════════════════
+
+const PRESETS = [
+  // Lecture 21, slides 19-22
+  { key: 'lecture1', title: 'Lecture Example 1 (comm = 1)', nP: 2,
+    tasks: ['A', 'B', 'C', 'D'],
+    edges: [['A', 'B'], ['A', 'C'], ['B', 'D'], ['C', 'D']],
+    compute: { A: [2, 3], B: [4, 2], C: [3, 2], D: [1, 3] },
+    comm: { 'A-B': 1, 'A-C': 1, 'B-D': 1, 'C-D': 1 },
+    note: 'The example worked in lecture: communication cost = 1 between different processors, no cost if tasks are on the same processor.' },
+  // Lecture 21, slide 23
+  { key: 'lecture2', title: 'Lecture Example 2 (comm = 2)', nP: 2,
+    tasks: ['A', 'B', 'C', 'D'],
+    edges: [['A', 'B'], ['A', 'C'], ['B', 'D'], ['C', 'D']],
+    compute: { A: [2, 3], B: [4, 2], C: [3, 2], D: [1, 3] },
+    comm: { 'A-B': 2, 'A-C': 2, 'B-D': 2, 'C-D': 2 },
+    note: 'Lecture example 2: the same tasks, but every inter-processor communication cost is raised from 1 to 2. Watch for an equal-EFT tie, broken by choosing the lower processor ID.' },
+  // Adapted from the HEFT Algorithm Trainer problem set
+  { key: 'chain3', title: '3-Task Chain', nP: 2,
+    tasks: ['A', 'B', 'C'],
+    edges: [['A', 'B'], ['B', 'C']],
+    compute: { A: [2, 4], B: [3, 1], C: [2, 3] },
+    comm: { 'A-B': 1, 'B-C': 2 } },
+  { key: 'fork3a', title: '3-Task Fork', nP: 2,
+    tasks: ['A', 'B', 'C'],
+    edges: [['A', 'B'], ['A', 'C']],
+    compute: { A: [3, 4], B: [2, 3], C: [5, 2] },
+    comm: { 'A-B': 2, 'A-C': 3 } },
+  { key: 'fork3b', title: '3-Task Fork II', nP: 2,
+    tasks: ['A', 'B', 'C'],
+    edges: [['A', 'B'], ['A', 'C']],
+    compute: { A: [3, 2], B: [4, 3], C: [2, 4] },
+    comm: { 'A-B': 2, 'A-C': 3 } },
+  { key: 'fork4', title: '4-Task Fork', nP: 2,
+    tasks: ['A', 'B', 'C', 'D'],
+    edges: [['A', 'B'], ['A', 'C'], ['A', 'D']],
+    compute: { A: [2, 3], B: [5, 2], C: [3, 4], D: [4, 1] },
+    comm: { 'A-B': 2, 'A-C': 1, 'A-D': 3 } },
+  { key: 'pipeline4', title: '4-Task Pipeline', nP: 2,
+    tasks: ['A', 'B', 'C', 'D'],
+    edges: [['A', 'B'], ['B', 'C'], ['C', 'D']],
+    compute: { A: [1, 3], B: [4, 2], C: [2, 5], D: [3, 1] },
+    comm: { 'A-B': 2, 'B-C': 1, 'C-D': 3 } },
+  { key: 'diamond5', title: '5-Task Diamond', nP: 2,
+    tasks: ['A', 'B', 'C', 'D', 'E'],
+    edges: [['A', 'B'], ['A', 'C'], ['B', 'D'], ['C', 'D'], ['D', 'E']],
+    compute: { A: [2, 4], B: [3, 5], C: [4, 2], D: [2, 3], E: [3, 2] },
+    comm: { 'A-B': 1, 'A-C': 2, 'B-D': 2, 'C-D': 1, 'D-E': 3 } },
+  { key: 'merge5', title: '5-Task Merge', nP: 2,
+    tasks: ['A', 'B', 'C', 'D', 'E'],
+    edges: [['A', 'B'], ['A', 'C'], ['B', 'D'], ['B', 'E'], ['C', 'D'], ['D', 'E']],
+    compute: { A: [3, 2], B: [4, 3], C: [2, 5], D: [3, 2], E: [2, 4] },
+    comm: { 'A-B': 1, 'A-C': 2, 'B-D': 3, 'B-E': 2, 'C-D': 1, 'D-E': 1 } },
+  // Lecture example 1 plus one extra input task, to show insertion into an idle gap
+  { key: 'insertion', title: 'Idle-Gap Insertion', nP: 2,
+    tasks: ['A', 'B', 'C', 'D', 'E'],
+    edges: [['A', 'B'], ['A', 'C'], ['B', 'D'], ['C', 'D'], ['E', 'D']],
+    compute: { A: [2, 3], B: [4, 2], C: [3, 2], D: [1, 3], E: [2, 1] },
+    comm: { 'A-B': 1, 'A-C': 1, 'B-D': 1, 'C-D': 1, 'E-D': 1 },
+    note: 'Lecture example 1 with one extra input task E feeding D. E has a low rank, so it is scheduled late, yet it can be inserted into an idle gap that an earlier task left on a processor.' },
+];
+
+function solveHEFT(prob) {
+  const { tasks, edges, compute, comm, nP } = prob;
+  const EPS = 1e-9;
+
+  const succs = {}, preds = {};
+  tasks.forEach(t => { succs[t] = []; preds[t] = []; });
+  edges.forEach(([u, v]) => { succs[u].push(v); preds[v].push(u); });
+  tasks.forEach(t => { succs[t].sort(); preds[t].sort(); });
+
+  // ── Phase 1: task prioritization ──
+  // Average computation cost of each task over all processors.
+  const avgW = {};
+  tasks.forEach(t => { avgW[t] = compute[t].reduce((a, b) => a + b, 0) / nP; });
+
+  // Upward rank, starting from the tasks with no successors:
+  //   rank_u(n_i) = avg_w(i) + max over successors n_j of ( avg_c(i,j) + rank_u(n_j) )
+  // avg_c(i,j) averages inter-processor costs only (the zero cost of
+  // same-processor communication is not included), so it equals comm[i-j].
+  const rank = {}, rankDetail = {}, rankOrder = [];
+  const visit = t => {
+    if (rank[t] !== undefined) return;
+    succs[t].forEach(visit);
+    const terms = succs[t].map(s => {
+      const c = comm[t + '-' + s];
+      return { succ: s, comm: c, rank: rank[s], sum: c + rank[s] };
+    });
+    let best = null;
+    terms.forEach(x => { if (best === null || x.sum > best.sum + EPS) best = x; });
+    rank[t] = avgW[t] + (best ? best.sum : 0);
+    rankDetail[t] = { terms, best };
+    rankOrder.push(t);            // order in which the ranks get computed (exit tasks first)
+  };
+  [...tasks].sort().forEach(visit);
+
+  // Priority order: decreasing upward rank. Equal ranks are ordered alphabetically
+  // (tied tasks are never dependent on each other, because costs are positive).
+  const order = [...tasks].sort((a, b) =>
+    Math.abs(rank[b] - rank[a]) > EPS ? rank[b] - rank[a] : a.localeCompare(b));
+  const rankTies = order.some((t, i) => i > 0 && Math.abs(rank[t] - rank[order[i - 1]]) <= EPS);
+
+  // ── Phase 2: processor selection with insertion ──
+  const busy = Array.from({ length: nP }, () => []);   // per processor: [{task, start, end}] sorted by start
+  const assigned = {};
+  const sched = [];
+
+  order.forEach(task => {
+    const cands = [];
+    for (let p = 0; p < nP; p++) {
+      // When does each predecessor's data arrive at processor p?
+      const arrivals = preds[task].map(u => {
+        const a = assigned[u];
+        const c = a.proc === p ? 0 : comm[u + '-' + task];
+        return { pred: u, proc: a.proc, finish: a.finish, comm: c, arrive: a.finish + c };
+      });
+      const ready = arrivals.reduce((mx, a) => Math.max(mx, a.arrive), 0);
+      const dur = compute[task][p];
+      const avail = busy[p].length ? busy[p][busy[p].length - 1].end : 0;
+
+      // Earliest feasible start: scan the processor's idle gaps for a slot,
+      // at or after `ready`, that is long enough to run the task.
+      let est = ready, gap = null;
+      const blockers = [];
+      for (let i = 0; i < busy[p].length; i++) {
+        const iv = busy[p][i];
+        if (est + dur <= iv.start) {                       // fits in the gap before this task
+          gap = { from: i ? busy[p][i - 1].end : 0, to: iv.start, before: iv.task };
+          break;
+        }
+        if (iv.end > est) {                                // this task is in the way
+          blockers.push({ task: iv.task, start: iv.start, end: iv.end });
+          est = iv.end;
+        }
+      }
+      cands.push({ proc: p, arrivals, ready, avail, blockers, gap, dur, est, eft: est + dur });
+    }
+
+    // Minimum EFT wins; equal EFTs go to the lower processor ID.
+    let chosen = 0;
+    cands.forEach(c => { if (c.eft < cands[chosen].eft) chosen = c.proc; });
+    const finish = cands[chosen].eft;
+    const start = cands[chosen].est;
+    const tie = cands.filter(c => c.eft === finish).length > 1;
+
+    assigned[task] = { proc: chosen, start, finish };
+    busy[chosen].push({ task, start, end: finish });
+    busy[chosen].sort((a, b) => a.start - b.start);
+    sched.push({ task, cands, chosen, tie, start, finish });
+  });
+
+  const makespan = Math.max(...tasks.map(t => assigned[t].finish));
+  return { nP, succs, preds, avgW, rank, rankDetail, rankOrder, order, rankTies, sched, assigned, makespan };
+}
+
+// Random layered DAG with a single entry task (A) and a single exit task (the
+// last letter). Costs are chosen so that averages come out as clean numbers.
+function generateRandomProblem(nTasks, nP, rnd) {
+  rnd = rnd || Math.random;
+  const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
+  const pick = arr => arr[ri(0, arr.length - 1)];
+  const tasks = 'ABCDEFGH'.slice(0, nTasks).split('');
+  let fallback = null;
+
+  for (let attempt = 0; attempt < 300; attempt++) {
+    // Layers: [entry], up to three middle layers of 1-3 tasks, [exit].
+    const layers = [[0]];
+    let next = 1, left = nTasks - 2;
+    while (left > 0) {
+      const layersLeft = 3 - (layers.length - 1);
+      let lo = Math.max(1, left - 3 * (layersLeft - 1));
+      const hi = Math.min(3, left);
+      if (hi >= 2 && rnd() < 0.75) lo = Math.max(lo, 2);   // prefer parallel tasks over long chains
+      const size = ri(lo, hi);
+      layers.push(Array.from({ length: size }, (_, i) => next + i));
+      next += size; left -= size;
+    }
+    layers.push([nTasks - 1]);
+
+    const seen = new Set(), pairs = [];
+    const add = (u, v) => { const k = u + '-' + v; if (!seen.has(k)) { seen.add(k); pairs.push([u, v]); } };
+    for (let L = 1; L < layers.length; L++) {
+      const prev = layers[L - 1], cur = layers[L];
+      cur.forEach(v => add(pick(prev), v));                                   // every task has a predecessor
+      prev.forEach(u => { if (!pairs.some(e => e[0] === u)) add(u, pick(cur)); }); // ...and a successor
+      if (rnd() < 0.3) add(pick(prev), pick(cur));                            // occasional extra dependency
+    }
+    if (layers.length >= 4 && rnd() < 0.25) {                                 // occasional layer-skipping edge
+      const L = ri(0, layers.length - 3);
+      add(pick(layers[L]), pick(layers[L + 2]));
+    }
+    pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const edges = pairs.map(([u, v]) => [tasks[u], tasks[v]]);
+
+    const compute = {};
+    tasks.forEach(t => {
+      let c;
+      do {
+        c = Array.from({ length: nP }, () => ri(1, 6));
+        if (nP === 3) c[2] += (3 - (c[0] + c[1] + c[2]) % 3) % 3;   // whole-number average
+      } while (c.every(x => x === c[0]));                           // heterogeneous processors
+      compute[t] = c;
+    });
+    const comm = {};
+    edges.forEach(([u, v]) => { comm[u + '-' + v] = ri(1, 4); });
+
+    const prob = { key: 'random', title: 'Random', nP, tasks, edges, compute, comm };
+    const sol = solveHEFT(prob);
+    const procsUsed = new Set(tasks.map(t => sol.assigned[t].proc)).size;
+    if (!sol.rankTies && procsUsed > 1) return prob;   // unambiguous order, non-trivial schedule
+    if (!fallback || !sol.rankTies) fallback = prob;
+  }
+  return fallback;
+}
+// ENGINE-END
+
+// ══════════════════════════════════════════════════════════════════════════
+// UI
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── State ──
+let problem = null;     // current problem (see format above)
+let sol = null;         // solveHEFT(problem)
+let layout = {};        // task -> {x, y} in the graph SVG
+let steps = [];         // [{type: 'init'|'avg'|'rank'|'order'|'schedule'|'done', task?, idx?}]
+let currentStep = 0;
+let mode = 'demo';      // 'demo' | 'practice'
+let score = 0;
+let scoreMax = 0;
+let quizPhase = '';     // 'ask' | 'results' | ''
+let quizFields = [];    // inputs of the current question: [{id, expected, show}]
+let orderPicked = [];   // priority-order quiz: tasks picked so far
+let orderWrong = [];    // priority-order quiz: wrong picks at the current position
+
+const SVG_W = 600, SVG_H = 400, NODE_R = 22;
+const $ = id => document.getElementById(id);
+const WBAR = 'w̄', CBAR = 'c̄';                 // w-bar, c-bar
+const RANK = 'rank<sub>u</sub>';
+const fmtR = x => (Math.abs(x * 2 - Math.round(x * 2)) < 1e-9 ? x.toFixed(1) : x.toFixed(2));
+const procName = p => 'P' + (p + 1);
+const taskColor = t => `var(--t${problem.tasks.indexOf(t) % 7})`;
+const mathLine = (html, cls) => `<div class="math-line${cls ? ' ' + cls : ''}">${html}</div>`;
+
+// ── Problem loading ──
+function loadProblem(prob) {
+  problem = prob;
+  $('taskCount').value = prob.tasks.length;   // the size controls always describe the problem on screen
+  $('procCount').value = prob.nP;
+  sol = solveHEFT(prob);
+  layout = computeLayout();
+  steps = [{ type: 'init' }, { type: 'avg' }];
+  sol.rankOrder.forEach(t => steps.push({ type: 'rank', task: t }));
+  steps.push({ type: 'order' });
+  sol.sched.forEach((s, i) => steps.push({ type: 'schedule', task: s.task, idx: i }));
+  steps.push({ type: 'done' });
+  resetSteps();
+}
+
+function newProblem() {
+  $('problemSelect').value = 'random';
+  loadProblem(generateRandomProblem(parseInt($('taskCount').value), parseInt($('procCount').value)));
+}
+
+// Layered layout: a task sits one layer below its deepest predecessor.
+function computeLayout() {
+  const layer = {};
+  sol.order.forEach(t => {   // priority order is a topological order
+    layer[t] = sol.preds[t].length ? Math.max(...sol.preds[t].map(p => layer[p])) + 1 : 0;
+  });
+  const nLayers = Math.max(...Object.values(layer)) + 1;
+  const rows = Array.from({ length: nLayers }, () => []);
+  [...problem.tasks].sort().forEach(t => rows[layer[t]].push(t));
+
+  const top = 46, bottom = SVG_H - 46, left = 80, right = SVG_W - 130;
+  const cx = (left + right) / 2;
+  const pos = {};
+  rows.forEach((row, i) => {
+    const y = nLayers === 1 ? SVG_H / 2 : top + (bottom - top) * i / (nLayers - 1);
+    const gap = row.length > 1 ? Math.min(190, (right - left) / (row.length - 1)) : 0;
+    row.forEach((t, j) => { pos[t] = { x: cx + (j - (row.length - 1) / 2) * gap, y }; });
+  });
+  return pos;
+}
+
+// ── What is known at a given step ──
+function stateAt(k) {
+  const st = { avg: false, ranks: new Set(), order: false, scheduled: [] };
+  for (let i = 0; i <= k; i++) {
+    const s = steps[i];
+    if (s.type === 'avg') st.avg = true;
+    else if (s.type === 'rank') st.ranks.add(s.task);
+    else if (s.type === 'order') st.order = true;
+    else if (s.type === 'schedule') st.scheduled.push(s.task);
+  }
+  return st;
+}
+
+// In practice mode, while a question is being asked, the graph, table and
+// Gantt chart show the previous step's state so they don't spoil the answer.
+function displayIdx() {
+  return (mode === 'practice' && quizPhase === 'ask' && currentStep > 0) ? currentStep - 1 : currentStep;
+}
+
+// ── Rendering ──
+function render() {
+  renderGraph();
+  renderTable();
+  renderGantt();
+  renderExplanation();
+  updateChrome();
+}
+
+function updateChrome() {
+  $('stepLabel').textContent = `Step ${currentStep}/${steps.length - 1}`;
+  $('scoreDisplay').style.display = mode === 'practice' ? '' : 'none';
+  $('scoreValue').textContent = score;
+  $('scoreMax').textContent = scoreMax;
+  $('prevBtn').disabled = mode === 'practice' || currentStep === 0;
+  const last = currentStep === steps.length - 1;
+  $('nextBtn').disabled = mode === 'practice'
+    ? !(steps[currentStep].type === 'init' || (quizPhase === 'results' && !last))
+    : last;
+}
+
+// Geometry of the edge u -> v. Straight unless it would run through another
+// node, in which case it bows away from that node.
+function edgeGeom(u, v) {
+  const a = layout[u], b = layout[v];
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+
+  let block = null;
+  problem.tasks.forEach(t => {
+    if (t === u || t === v) return;
+    const p = layout[t];
+    const tt = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (len * len)));
+    const d = Math.hypot(a.x + tt * dx - p.x, a.y + tt * dy - p.y);
+    if (d < NODE_R + 16 && (!block || d < block.d)) {
+      block = { d, side: Math.sign(nx * (p.x - a.x) + ny * (p.y - a.y)) || 1 };
+    }
+  });
+
+  if (!block) {
+    const tip = [b.x - ux * (NODE_R + 3), b.y - uy * (NODE_R + 3)];
+    return {
+      d: `M${a.x + ux * NODE_R},${a.y + uy * NODE_R}L${tip[0] - ux * 7},${tip[1] - uy * 7}`,
+      tip, dir: [ux, uy],
+      label: [a.x + dx * 0.4 + nx * 13, a.y + dy * 0.4 + ny * 13],
+    };
+  }
+  const bow = 90, s = -block.side;
+  const cx = (a.x + b.x) / 2 + s * nx * bow, cy = (a.y + b.y) / 2 + s * ny * bow;
+  const l1 = Math.hypot(cx - a.x, cy - a.y), l2 = Math.hypot(b.x - cx, b.y - cy);
+  const ex = (b.x - cx) / l2, ey = (b.y - cy) / l2;
+  const tip = [b.x - ex * (NODE_R + 3), b.y - ey * (NODE_R + 3)];
+  return {
+    d: `M${a.x + (cx - a.x) / l1 * NODE_R},${a.y + (cy - a.y) / l1 * NODE_R}Q${cx},${cy} ${tip[0] - ex * 7},${tip[1] - ey * 7}`,
+    tip, dir: [ex, ey],
+    label: [0.25 * a.x + 0.5 * cx + 0.25 * b.x + s * nx * 13, 0.25 * a.y + 0.5 * cy + 0.25 * b.y + s * ny * 13],
+  };
+}
+
+function renderGraph() {
+  const dIdx = displayIdx();
+  const st = stateAt(dIdx);
+  const step = steps[currentStep];
+  const revealed = dIdx === currentStep;
+  const focus = (step.type === 'rank' || step.type === 'schedule') ? step.task : null;
+  let html = '';
+
+  // Edges
+  problem.edges.forEach(([u, v]) => {
+    let cls = '';
+    if (st.scheduled.includes(u) && st.scheduled.includes(v)) {
+      cls = sol.assigned[u].proc === sol.assigned[v].proc ? 'local' : 'cross';
+    } else if (step.type === 'rank' && u === focus) {
+      const best = sol.rankDetail[u].best;
+      cls = revealed && best && best.succ === v ? 'best' : 'focus';
+    } else if (step.type === 'schedule' && v === focus) {
+      cls = 'focus';
+    }
+    const g = edgeGeom(u, v);
+    const [tx, ty] = g.tip, [ux, uy] = g.dir;
+    const bx = tx - ux * 10, by = ty - uy * 10;
+    html += `<path class="edge ${cls}" d="${g.d}"/>`;
+    html += `<polygon class="arrow ${cls}" points="${tx},${ty} ${bx - uy * 5},${by + ux * 5} ${bx + uy * 5},${by - ux * 5}"/>`;
+    html += `<rect class="edge-label-bg" x="${g.label[0] - 10}" y="${g.label[1] - 9}" width="20" height="18" rx="4"/>`;
+    html += `<text class="edge-label" x="${g.label[0]}" y="${g.label[1] + 4}">${problem.comm[u + '-' + v]}</text>`;
+  });
+
+  // Nodes
+  problem.tasks.forEach(t => {
+    const { x, y } = layout[t];
+    const isSched = st.scheduled.includes(t);
+    const hasRank = st.ranks.has(t);
+    const cls = ['node', hasRank ? 'ranked' : '', isSched ? 'scheduled' : '', t === focus ? 'current' : ''].join(' ');
+    const fill = isSched ? ` style="fill:${taskColor(t)}"` : '';
+    html += `<circle class="${cls}" cx="${x}" cy="${y}" r="${NODE_R}"${fill}/>`;
+    html += `<text class="node-label${isSched ? ' on-color' : ''}" x="${x}" y="${y + 5}">${t}</text>`;
+
+    // Upward rank and, once scheduled, processor and time slot
+    const lx = x + NODE_R + 8;
+    if (hasRank) {
+      const changed = revealed && step.type === 'rank' && step.task === t;
+      html += `<text class="node-info${changed ? ' changed' : ''}" x="${lx}" y="${isSched ? y - 3 : y + 4}">rank ${fmtR(sol.rank[t])}</text>`;
+    }
+    if (isSched) {
+      const a = sol.assigned[t];
+      const changed = revealed && step.type === 'schedule' && step.task === t;
+      html += `<text class="node-info${changed ? ' changed' : ''}" x="${lx}" y="${y + 13}">${procName(a.proc)} [${a.start},${a.finish})</text>`;
+    }
+  });
+
+  // Practice mode: tasks can be clicked to build the priority order
+  if (mode === 'practice' && quizPhase === 'ask' && step.type === 'order') {
+    problem.tasks.forEach(t => {
+      if (orderPicked.includes(t)) return;
+      html += `<circle class="node-hit" cx="${layout[t].x}" cy="${layout[t].y}" r="${NODE_R}" onclick="pickOrder('${t}')"/>`;
+    });
+  }
+
+  $('graphSvg').innerHTML = html;
+}
+
+function renderTable() {
+  const dIdx = displayIdx();
+  const st = stateAt(dIdx);
+  const step = steps[currentStep];
+  const revealed = dIdx === currentStep;
+  const focus = (step.type === 'rank' || step.type === 'schedule') ? step.task : null;
+  const ch = on => (on ? ' class="cell-changed"' : '');
+
+  let html = '<table class="state-table"><thead><tr><th>Task</th>';
+  for (let p = 0; p < problem.nP; p++) html += `<th>${procName(p)}</th>`;
+  html += `<th class="group-start"><span class="lc">${WBAR}</span></th><th><span class="lc">${RANK}</span></th><th>#</th>`;
+  html += '<th class="group-start">Proc</th><th>Start</th><th>Finish</th></tr></thead><tbody>';
+
+  [...problem.tasks].sort().forEach(t => {
+    const isSched = st.scheduled.includes(t);
+    const a = sol.assigned[t];
+    const rowClass = t === focus ? 'row-current' : (isSched ? 'row-visited' : '');
+    const rankNew = revealed && step.type === 'rank' && step.task === t;
+    const schedNew = revealed && step.type === 'schedule' && step.task === t;
+
+    html += `<tr class="${rowClass}">`;
+    html += `<td><span class="chip" style="background:${taskColor(t)}"></span>${t}</td>`;
+    problem.compute[t].forEach(c => { html += `<td>${c}</td>`; });
+    html += `<td class="group-start${revealed && step.type === 'avg' ? ' cell-changed' : ''}">${st.avg ? fmtR(sol.avgW[t]) : ''}</td>`;
+    html += `<td${ch(rankNew)}>${st.ranks.has(t) ? fmtR(sol.rank[t]) : ''}</td>`;
+    html += `<td${ch(revealed && step.type === 'order')}>${st.order ? sol.order.indexOf(t) + 1 : ''}</td>`;
+    html += `<td class="group-start${schedNew ? ' cell-changed' : ''}">${isSched ? procName(a.proc) : ''}</td>`;
+    html += `<td${ch(schedNew)}>${isSched ? a.start : ''}</td>`;
+    html += `<td${ch(schedNew)}>${isSched ? a.finish : ''}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  $('stateTableWrap').innerHTML = html;
+}
+
+function renderGantt() {
+  const dIdx = displayIdx();
+  const st = stateAt(dIdx);
+  const step = steps[dIdx];
+  const nP = problem.nP;
+
+  // Candidate slots of the task being scheduled at the displayed step
+  const cur = step.type === 'schedule' ? sol.sched[step.idx] : null;
+
+  // Time axis: fixed in demo mode; grows with the schedule in practice mode so
+  // that the axis does not give the makespan away.
+  let T;
+  if (mode === 'demo') {
+    T = Math.max(sol.makespan + 1, ...sol.sched.flatMap(s => s.cands.map(c => c.eft)));
+  } else {
+    T = Math.max(6, ...st.scheduled.map(t => sol.assigned[t].finish + 2));
+    if (cur) T = Math.max(T, ...cur.cands.map(c => c.eft + 1));
+  }
+
+  const W = 560, left = 40, right = 16, top = 12, rowH = 32, gap = 8;
+  const axisY = top + nP * (rowH + gap);
+  const H = axisY + 26;
+  const sx = t => left + (W - left - right) * t / T;
+  const tickStep = T <= 16 ? 1 : (T <= 32 ? 2 : 5);
+  let html = '';
+
+  for (let p = 0; p < nP; p++) {
+    const y = top + p * (rowH + gap);
+    html += `<rect class="gantt-row" x="${left}" y="${y}" width="${W - left - right}" height="${rowH}" rx="4"/>`;
+    html += `<text class="gantt-proc" x="10" y="${y + rowH / 2 + 4}">${procName(p)}</text>`;
+  }
+  for (let t = 0; t <= T; t += tickStep) {
+    html += `<line class="gantt-grid" x1="${sx(t)}" y1="${top}" x2="${sx(t)}" y2="${axisY}"/>`;
+    html += `<text class="gantt-tick" x="${sx(t)}" y="${axisY + 14}">${t}</text>`;
+  }
+  html += `<line class="gantt-axis" x1="${left}" y1="${axisY}" x2="${W - right}" y2="${axisY}"/>`;
+
+  // Candidates on the processors that were not chosen
+  if (cur) {
+    cur.cands.forEach(c => {
+      if (c.proc === cur.chosen) return;
+      const y = top + c.proc * (rowH + gap);
+      const x = sx(c.est), w = sx(c.eft) - x;
+      html += `<rect class="gantt-ghost" x="${x + 1}" y="${y + 4}" width="${w - 2}" height="${rowH - 8}" rx="4"/>`;
+      html += `<text class="gantt-ghost-label" x="${x + w / 2}" y="${y + rowH / 2 + 4}">${cur.task}?</text>`;
+    });
+  }
+
+  // Scheduled tasks
+  st.scheduled.forEach(t => {
+    const a = sol.assigned[t];
+    const y = top + a.proc * (rowH + gap);
+    const x = sx(a.start), w = sx(a.finish) - x;
+    const isCur = cur && cur.task === t;
+    html += `<rect class="gantt-bar${isCur ? ' current' : ''}" x="${x + 1}" y="${y + 3}" width="${w - 2}" height="${rowH - 6}" rx="4" style="fill:${taskColor(t)}"/>`;
+    html += `<text class="gantt-bar-label" x="${x + w / 2}" y="${y + rowH / 2 + 5}">${t}</text>`;
+  });
+
+  // Makespan marker once the schedule is complete
+  if (step.type === 'done') {
+    const x = sx(sol.makespan);
+    html += `<line class="gantt-makespan" x1="${x}" y1="${top - 6}" x2="${x}" y2="${axisY}"/>`;
+    html += `<text class="gantt-makespan-label" x="${x - 6}" y="${H - 1}" text-anchor="end">makespan = ${sol.makespan}</text>`;
+  }
+
+  const svg = $('ganttSvg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = html;
+}
+
+// ── Explanations (Demo mode, and the worked answer in Practice mode) ──
+function candHTML(task, c, chosen) {
+  const P = procName(c.proc);
+  const lines = [];
+
+  if (!c.arrivals.length) lines.push('No dependencies: data ready at 0.');
+  c.arrivals.forEach(a => {
+    lines.push(a.proc === c.proc
+      ? `${a.pred} finishes at ${a.finish} on ${P} &rarr; local on ${P}, ready at ${a.finish}`
+      : `${a.pred} finishes at ${a.finish} on ${procName(a.proc)} &rarr; data to ${P} = ${a.finish} + ${a.comm} = ${a.arrive}`);
+  });
+  if (c.arrivals.length > 1) lines.push(`Data ready = max(${c.arrivals.map(a => a.arrive).join(', ')}) = ${c.ready}`);
+
+  const blocked = c.blockers.map(b => `${b.task} occupies ${P} during [${b.start},${b.end})`).join(' and ');
+  if (c.gap) {
+    lines.push((blocked ? `Data ready at ${c.ready}, but ${blocked}. Then the ` : 'The ')
+      + `idle gap [${c.gap.from},${c.gap.to}) before ${c.gap.before} is long enough for ${task} (needs ${c.dur}) &rarr; <span class="math">EST = ${c.est}</span>`);
+  } else if (blocked) {
+    lines.push(`Data ready at ${c.ready}, but ${blocked}. Earliest feasible interval starts at ${c.est} &rarr; <span class="math">EST = ${c.est}</span>`);
+  } else {
+    lines.push(`<span class="math">EST = max(data ready ${c.ready}, ${P} free at ${c.avail}) = ${c.est}</span>`);
+  }
+  lines.push(`<span class="math">EFT = EST + w(${task},${P}) = ${c.est} + ${c.dur} = <strong>${c.eft}</strong></span>`);
+
+  return `<div class="proc-block${chosen ? ' chosen' : ''}"><div class="proc-name">${P}${chosen ? ' ✓' : ''}</div>`
+    + lines.map(l => `<div class="line">${l}</div>`).join('') + '</div>';
+}
+
+function explainHTML(k) {
+  const step = steps[k];
+  const { tasks, nP } = problem;
+
+  if (step.type === 'init') {
+    return `
+      <div class="step-title">The Scheduling Problem</div>
+      <p>Map the ${tasks.length} tasks of the task graph onto ${nP} heterogeneous processors so as to minimize the
+      <strong>makespan</strong>: the time at which the last task finishes. The table gives each task's computation cost
+      on each processor. An edge label is the communication cost paid when its two tasks run on
+      <strong>different</strong> processors; there is no cost if they are on the same processor.</p>
+      ${problem.note ? `<p style="margin-top:8px"><em>${problem.note}</em></p>` : ''}
+      <div class="summary">HEFT works in two phases: <strong>1. Task Prioritization</strong> (upward ranks), then
+      <strong>2. Processor Selection</strong> and insertion into the schedule.</div>`;
+  }
+
+  if (step.type === 'avg') {
+    const lines = [...tasks].sort().map(t =>
+      mathLine(`${WBAR}(${t}) = avg(${problem.compute[t].join(', ')}) = <span class="updated">${fmtR(sol.avgW[t])}</span>`)).join('');
+    return `
+      <div class="step-title">Phase 1: Average Computation Costs</div>
+      <p>Task prioritization does not know yet where each task will run, so it uses the computation cost averaged over
+      the ${nP} processors, <span class="math">${WBAR}</span>:</p>
+      ${lines}
+      <div class="summary">Likewise the average communication cost <span class="math">${CBAR}</span> of an edge uses the
+      inter-processor costs only (here, the edge label). The zero cost of same-processor communication is not included
+      in the ranking average.</div>`;
+  }
+
+  if (step.type === 'rank') {
+    const t = step.task;
+    const { terms, best } = sol.rankDetail[t];
+    const formula = mathLine(`${RANK}(n<sub>i</sub>) = ${WBAR}<sub>i</sub> + max<sub>n<sub>j</sub> &isin; succ(n<sub>i</sub>)</sub> ( ${CBAR}<sub>i,j</sub> + ${RANK}(n<sub>j</sub>) )`, 'formula');
+    const result = `<span class="updated">${fmtR(sol.rank[t])}</span>`;
+    let body, summary;
+    if (!terms.length) {
+      body = `<p><strong>${t}</strong> has no successors, so its upward rank is just its average computation cost:</p>`
+        + mathLine(`${RANK}(${t}) = ${WBAR}(${t}) = ${result}`);
+      summary = 'Ranks are assigned starting from the tasks with no successors, working upward through the graph.';
+    } else if (terms.length === 1) {
+      const x = terms[0];
+      body = `<p><strong>${t}</strong> has one successor, ${x.succ}:</p>`
+        + mathLine(`${RANK}(${t}) = ${WBAR}(${t}) + ${CBAR}(${t},${x.succ}) + ${RANK}(${x.succ}) = ${fmtR(sol.avgW[t])} + ${x.comm} + ${fmtR(x.rank)} = ${result}`);
+      summary = `The upward rank of ${t} is the length of the longest path from ${t} to the end of the graph, using average costs.`;
+    } else {
+      body = `<p><strong>${t}</strong> has ${terms.length} successors (${terms.map(x => x.succ).join(', ')}); take the maximum over them:</p>`
+        + mathLine(`${RANK}(${t}) = ${WBAR}(${t}) + max( ${terms.map(x => `${CBAR}(${t},${x.succ}) + ${RANK}(${x.succ})`).join(', ')} )`)
+        + mathLine(`        = ${fmtR(sol.avgW[t])} + max( ${terms.map(x => `${x.comm} + ${fmtR(x.rank)}`).join(', ')} ) = ${fmtR(sol.avgW[t])} + ${fmtR(best.sum)} = ${result}`);
+      summary = `The maximum comes from successor ${best.succ} (highlighted edge).`;
+    }
+    return `<div class="step-title">Phase 1: Upward Rank of Task ${t}</div>${formula}${body}<div class="summary">${summary}</div>`;
+  }
+
+  if (step.type === 'order') {
+    return `
+      <div class="step-title">Phase 1: Priority Order</div>
+      <p>Tasks are sorted in <strong>decreasing order of upward rank</strong>:</p>
+      ${mathLine(`Priority order: <span class="updated">${sol.order.map(t => `${t} (${fmtR(sol.rank[t])})`).join(' → ')}</span>`)}
+      <div class="summary">A task always has a higher rank than its successors, so every task is scheduled after the
+      tasks it depends on.${sol.rankTies ? ' Tasks with equal ranks are taken in alphabetical order.' : ''}
+      Phase 2 now takes the tasks one at a time in this order.</div>`;
+  }
+
+  if (step.type === 'schedule') {
+    const s = sol.sched[step.idx];
+    const t = s.task;
+    const deps = sol.preds[t].map(u => `${u} on ${procName(sol.assigned[u].proc)}`);
+    const efts = s.cands.map(c => c.eft);
+    let verdict;
+    if (s.tie) {
+      const tied = s.cands.filter(c => c.eft === s.finish).map(c => procName(c.proc)).join(' and ');
+      verdict = `Equal EFT of ${s.finish} on ${tied}: break the tie by choosing the lower processor ID. `
+        + `<strong>Assign ${t} to ${procName(s.chosen)}</strong>, running during [${s.start},${s.finish}).`;
+    } else {
+      verdict = `<strong>Assign ${t} to ${procName(s.chosen)}</strong> (lowest EFT: ${s.finish} versus ${efts.filter((_, p) => p !== s.chosen).join(', ')}), running during [${s.start},${s.finish}).`;
+    }
+    return `
+      <div class="step-title">Phase 2: Processor Selection for Task ${t}</div>
+      <p>Next in priority order: <strong>${t}</strong> (rank ${fmtR(sol.rank[t])}).
+      ${deps.length ? `It depends on ${deps.join(' and ')}.` : 'It has no dependencies.'}
+      For each processor, find the earliest feasible start time, checking any idle gaps for a slot long enough to run
+      the task after all its inputs arrive.</p>
+      ${s.cands.map(c => candHTML(t, c, c.proc === s.chosen)).join('')}
+      <div class="summary">✓ ${verdict}</div>`;
+  }
+
+  // done
+  const rows = sol.order.map(t => {
+    const a = sol.assigned[t];
+    return `<div class="path-result">${t}: ${procName(a.proc)} [${a.start},${a.finish})</div>`;
+  }).join('');
+  return `<div class="done-summary"><h3>Schedule Complete</h3>
+    <p>All tasks have been assigned. The makespan is the finish time of the last task.</p>
+    ${rows}
+    <div class="path-result makespan">Makespan = ${sol.makespan}</div></div>`;
+}
+
+function renderExplanation() {
+  const el = $('explanationContent');
+  if (mode === 'practice') {
+    $('explanationHeader').textContent = 'Practice Mode';
+    renderPracticeUI(el);
+    return;
+  }
+  $('explanationHeader').textContent = 'Explanation';
+  el.innerHTML = explainHTML(currentStep);
+}
+
+// ── Practice Mode ──
+// Registers an answer field and returns its HTML. `options` turns it into a dropdown.
+function field(id, expected, show, options) {
+  quizFields.push({ id, expected, show });
+  const control = options
+    ? `<select class="quiz-input" id="${id}"><option value="">?</option>${options.map((o, i) => `<option value="${i}">${o}</option>`).join('')}</select>`
+    : `<input class="quiz-input" type="number" step="any" id="${id}">`;
+  return `${control}<span class="quiz-feedback" id="${id}-fb"></span>`;
+}
+
+function resultsHTML() {
+  const last = currentStep === steps.length - 1;
+  return explainHTML(currentStep) + (last
+    ? `<div class="quiz-prompt" style="text-align:center">Your score: ${score} / ${scoreMax}</div>`
+    : `<button class="btn-primary quiz-submit" id="continueBtn" onclick="advancePractice()">Continue</button>`);
+}
+
+function renderPracticeUI(el) {
+  const step = steps[currentStep];
+
+  if (step.type === 'init') {
+    el.innerHTML = explainHTML(currentStep)
+      + `<div class="quiz-area" style="padding:12px 0 0"><button class="btn-primary" onclick="advancePractice()">Start practice</button></div>`;
+    return;
+  }
+  if (quizPhase === 'results') {
+    el.innerHTML = `<div class="quiz-area">${resultsHTML()}</div>`;
+    return;
+  }
+
+  quizFields = [];
+  let html = '<div class="quiz-area">';
+
+  if (step.type === 'avg') {
+    html += `<div class="quiz-prompt">Phase 1: compute the average computation cost ${WBAR} of each task (average over the ${problem.nP} processors).</div>`;
+    [...problem.tasks].sort().forEach(t => {
+      html += `<div class="quiz-input-row"><label class="wide">${WBAR}(${t}) = avg(${problem.compute[t].join(', ')}) =</label>${field('qi-avg-' + t, sol.avgW[t], fmtR(sol.avgW[t]))}</div>`;
+    });
+
+  } else if (step.type === 'rank') {
+    const t = step.task;
+    const succ = sol.succs[t];
+    html += `<div class="quiz-prompt">Phase 1: compute the upward rank of task ${t}.</div>`;
+    html += `<div class="quiz-hint">${succ.length ? `Successors of ${t}: ${succ.join(', ')}.` : `${t} has no successors.`}
+      ${mathLine(`${RANK}(n<sub>i</sub>) = ${WBAR}<sub>i</sub> + max<sub>n<sub>j</sub> &isin; succ(n<sub>i</sub>)</sub> ( ${CBAR}<sub>i,j</sub> + ${RANK}(n<sub>j</sub>) )`, 'formula')}</div>`;
+    html += `<div class="quiz-input-row"><label class="wide">${RANK}(${t}) =</label>${field('qi-rank', sol.rank[t], fmtR(sol.rank[t]))}</div>`;
+
+  } else if (step.type === 'order') {
+    html += `<div class="quiz-prompt">Phase 1: in what order will HEFT schedule the tasks? Click them in priority order (decreasing upward rank${sol.rankTies ? ', ties broken alphabetically' : ''}).</div>`;
+    html += `<div class="quiz-sequence">Priority order: ${orderPicked.concat('?').join(' → ')}</div><div class="quiz-choices">`;
+    [...problem.tasks].sort().forEach(t => {
+      const cls = orderPicked.includes(t) ? 'correct disabled' : (orderWrong.includes(t) ? 'incorrect disabled' : '');
+      html += `<button class="quiz-choice ${cls}" onclick="pickOrder('${t}')">${t} (${fmtR(sol.rank[t])})</button>`;
+    });
+    html += '</div>';
+    if (orderWrong.length) html += `<div class="quiz-hint">Not yet: look for the highest upward rank among the tasks that are left.</div>`;
+
+  } else if (step.type === 'schedule') {
+    const s = sol.sched[step.idx];
+    const t = s.task;
+    const deps = sol.preds[t].map(u => `${u} (${procName(sol.assigned[u].proc)}, finishes at ${sol.assigned[u].finish})`);
+    html += `<div class="quiz-prompt">Phase 2: schedule task ${t}, next in priority order. Compute its earliest start time (EST) and earliest finish time (EFT) on each processor, then choose a processor.</div>`;
+    html += `<div class="quiz-hint">${deps.length ? `${t} depends on ${deps.join(' and ')}.` : `${t} has no dependencies.`}
+      Use an idle gap if the task fits in it after all its inputs arrive. Break equal-EFT ties by choosing the lower processor ID.</div>`;
+    s.cands.forEach(c => {
+      html += `<div class="quiz-input-row"><label>${procName(c.proc)}:</label><span class="sub">EST</span>${field('qi-est-' + c.proc, c.est, c.est)}
+        <span class="sub">EFT</span>${field('qi-eft-' + c.proc, c.eft, c.eft)}</div>`;
+    });
+    html += `<div class="quiz-input-row"><label class="wide">Assign ${t} to:</label>${field('qi-proc', s.chosen, procName(s.chosen), s.cands.map(c => procName(c.proc)))}</div>`;
+
+  } else if (step.type === 'done') {
+    html += `<div class="quiz-prompt">All tasks are scheduled. What is the makespan of this schedule?</div>`;
+    html += `<div class="quiz-input-row"><label class="wide">Makespan =</label>${field('qi-makespan', sol.makespan, sol.makespan)}</div>`;
+  }
+
+  if (quizFields.length) html += `<button class="btn-primary quiz-submit" id="quizSubmit" onclick="checkAnswers()">Check Answers</button>`;
+  html += '<div class="quiz-results" id="quizResults"></div></div>';
+  el.innerHTML = html;
+
+  const first = el.querySelector('.quiz-input');
+  if (first) setTimeout(() => first.focus(), 50);
+}
+
+// Grades every field of the current question, then shows the worked answer
+// below the (now locked) inputs.
+function checkAnswers() {
+  if (mode !== 'practice' || quizPhase !== 'ask' || !quizFields.length) return;
+  quizFields.forEach(f => {
+    const input = $(f.id), fb = $(f.id + '-fb');
+    const val = parseFloat(input.value);
+    const ok = Number.isFinite(val) && Math.abs(val - f.expected) < 0.01;
+    scoreMax++;
+    if (ok) score++;
+    input.classList.add(ok ? 'correct' : 'incorrect');
+    input.disabled = true;
+    fb.textContent = ok ? '✓' : `✗ ${f.show}`;
+    fb.className = 'quiz-feedback ' + (ok ? 'correct' : 'incorrect');
+  });
+  quizPhase = 'results';
+  $('quizSubmit').remove();
+  $('quizResults').innerHTML = resultsHTML();
+  renderGraph();
+  renderTable();
+  renderGantt();
+  updateChrome();
+  const btn = $('continueBtn');
+  if (btn) btn.focus();
+}
+
+// Priority-order question: tasks are clicked one at a time (in the list or on the graph).
+function pickOrder(t) {
+  if (mode !== 'practice' || quizPhase !== 'ask' || steps[currentStep].type !== 'order') return;
+  if (orderPicked.includes(t) || orderWrong.includes(t)) return;
+  if (t !== sol.order[orderPicked.length]) {
+    orderWrong.push(t);
+    render();
+    return;
+  }
+  scoreMax++;
+  if (!orderWrong.length) score++;       // only a first-try pick scores
+  orderPicked.push(t);
+  orderWrong = [];
+  if (orderPicked.length >= sol.order.length - 1) quizPhase = 'results';   // the last task is forced
+  render();
+  if (quizPhase === 'results') { const btn = $('continueBtn'); if (btn) btn.focus(); }
+}
+
+function advancePractice() {
+  if (currentStep >= steps.length - 1) return;
+  currentStep++;
+  quizPhase = 'ask';
+  quizFields = [];
+  orderPicked = [];
+  orderWrong = [];
+  render();
+}
+
+// ── Controls ──
+function prevStep() {
+  if (mode === 'practice') return; // no going back in practice mode
+  if (currentStep > 0) { currentStep--; render(); }
+}
+
+function nextStep() {
+  if (mode === 'practice') {
+    // Advance from the problem statement, or after a question has been answered
+    if (steps[currentStep].type === 'init' || quizPhase === 'results') advancePractice();
+    return;
+  }
+  if (currentStep < steps.length - 1) { currentStep++; render(); }
+}
+
+function resetSteps() {
+  currentStep = 0;
+  score = 0;
+  scoreMax = 0;
+  quizPhase = '';
+  quizFields = [];
+  orderPicked = [];
+  orderWrong = [];
+  render();
+}
+
+function setMode(m) {
+  mode = m;
+  $('modeDemo').classList.toggle('active', m === 'demo');
+  $('modePractice').classList.toggle('active', m === 'practice');
+  resetSteps();
+}
+
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? '' : 'dark');
+}
+
+// Problem picker: the lecture examples, the practice set, or a random problem
+(function initProblemSelect() {
+  const sel = $('problemSelect');
+  PRESETS.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.key;
+    opt.textContent = p.title;
+    sel.appendChild(opt);
+  });
+  const opt = document.createElement('option');
+  opt.value = 'random';
+  opt.textContent = 'Random';
+  sel.appendChild(opt);
+  sel.addEventListener('change', () => {
+    if (sel.value === 'random') newProblem();
+    else loadProblem(PRESETS.find(p => p.key === sel.value));
+  });
+})();
+
+// Changing the problem size generates a new random problem of that size
+$('taskCount').addEventListener('change', newProblem);
+$('procCount').addEventListener('change', newProblem);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+    if (e.key === 'Enter' && e.target.classList.contains('quiz-input')) { e.preventDefault(); checkAnswers(); }
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  switch (e.key) {
+    case 'ArrowLeft': prevStep(); break;
+    case 'ArrowRight': nextStep(); break;
+    case 'r': case 'R': resetSteps(); break;
+    case 'g': case 'G': newProblem(); break;
+    case 'n': case 'N': setMode(mode === 'demo' ? 'practice' : 'demo'); break;
+    case 'd': case 'D': toggleDark(); break;
+  }
+});
+
+// ── Init: start with the example from lecture ──
+loadProblem(PRESETS[0]);
+</script>
+</body>
+</html>

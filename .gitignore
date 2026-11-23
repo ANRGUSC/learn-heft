@@ -1,0 +1,6 @@
+# Lecture slides are course material, not part of the app
+*.pdf
+# Stray Windows device-name file
+nul
+.vercel
+node_modules
